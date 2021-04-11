@@ -1,5 +1,5 @@
 # CE903 Group Project Framingham Heart study
-> Constructing a predictive model to predict ten year risk of coronary heart diseas.
+> Constructing a predictive model to predict ten year risk of coronary heart disease.
 
 ## Table of contents
 * [General info](#general-info)
