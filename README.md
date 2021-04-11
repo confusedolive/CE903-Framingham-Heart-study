@@ -32,7 +32,7 @@ ADD here information about the dataset and reason behind this project.
 Section to write the correct steps to execute all code, essentially a guide on how to use the available data to produce the results in the paper
 ## Code Examples
 * Borutapy implementation for feature selection available in code/processingv1-0.py:
-![boruta](./example/Borutapy implementation.PNG)
+![boruta](https://github.com/confusedolive/CE903-Framingham-Heart-study/blob/main/example/Borutapy%20implementation.PNG?raw=true)
 
 ## External resources used 
 * https://www.kaggle.com/amanajmera1/framingham-heart-study-dataset, access to dataset through Kaggle.
