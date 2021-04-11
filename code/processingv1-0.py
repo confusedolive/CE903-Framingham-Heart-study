@@ -93,6 +93,9 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.35, strati
 X_train, y_train = over.fit_resample(X_train, y_train)
 X_train,y_train = under.fit_resample(X_train, y_train)
 
+
+results_acc = {}
+results_f1  = {}
 ######################################logistic regression###############################################################
 ###paremeter tuning for logistic regression
 params = [
@@ -111,29 +114,45 @@ grid = GridSearchCV(log, param_grid=params, cv= 10, verbose=2, n_jobs= -1)
 b = grid.fit(X_train, y_train)
 print(b.best_estimator_)
 
-logmodel = LogisticRegression(C=0.08858667904100823, penalty='l1', solver='liblinear')
-
+logmodel = LogisticRegression(C=0.03359818286283781, l1_ratio=0.5, penalty='elasticnet',
+                   solver='saga')
 logmodel.fit(X_train, y_train)
+
 print(classification_report(y_test, logmodel.predict(X_test)))
-print(metrics.f1_score(y_test, logmodel.predict(X_test)))
-print(logmodel.score(X_test, y_test))
+f1scor   = metrics.f1_score(y_test, logmodel.predict(X_test))
+accscore = logmodel.score(X_test, y_test)
+print(f1scor, accscore)
+
+results_acc['logmodel'] = accscore
+results_f1['logmodel']  = f1scor
+
 sns.set_style('dark')
 sns.set_context('paper', font_scale=1.4)
 plot_conf(logmodel)
-#with just oversampling SMOTE , 0.65 acc and 0.36 f1 score
-#C=0.08858667904100823, penalty='l1', solver='liblinear, over ratio = 0.2, under = 0.8, f1_score = 0.39 , acc = 0.71
-#with oversampling ration 0.2 undersampling ratio 0.6 , params = C=0.03359818286283781, penalty='l1', solver='saga' f1 score= 0.35, acc =0.80
+
 #################################suppor vector hyperspace######################################
-svc = SVC(kernel='linear', C=100, gamma=1)
+#parameter tuning for support vector machine
+param_grid = {'C': [0.1,1, 10, 100],
+            'gamma': [1,0.1,0.01,0.001],
+            'kernel': ['rbf', 'poly', 'sigmoid']}
+
+grid = GridSearchCV(SVC(), param_grid, verbose=2)
+grid.fit(X_train, y_train)
+print(grid.best_estimator_)
+
+svc = SVC(C=0.1, gamma=0.1)
 svc.fit(X_train, y_train)
 y_pred = svc.predict(X_test)
 
+print(classification_report(y_test, y_pred))
+f1scorsv = metrics.f1_score(y_test, y_pred)
+accscorsv = svc.score(X_test, y_test)
 plot_conf(svc)
 
-print(classification_report(y_test, y_pred))
-print(metrics.f1_score(y_test, y_pred))
-
+results_acc['svc'] = accscorsv
+results_f1['svc']  = f1scorsv
 #########################Boosting#################################
+
 svc1 = SVC(kernel='linear', probability=True, C=100, gamma=1)
 ada = AdaBoostClassifier(n_estimators=5, base_estimator=svc1)
 grad_boost = GradientBoostingClassifier(n_estimators=10)
@@ -143,27 +162,45 @@ ensemble = EnsembleVoteClassifier(clfs = [ada, grad_boost, xgb], voting='hard')
 
 ensemble.fit(X_train, y_train)
 
-y_pred = ensemble.predict(X_test)
+y_preden = ensemble.predict(X_test)
+f1scoren = metrics.f1_score(y_test, y_preden)
+accscoren = ensemble.score(X_test, y_test)
+results_acc['ensemble'] = accscoren
+results_f1['ensemble']  = f1scoren
+
 print(classification_report(y_test, y_pred))
 plot_conf(ensemble)
 ###############################################################################
 
-
-param_grid = {'C': [0.1,1, 10, 100],
-            'gamma': [1,0.1,0.01,0.001],
-            'kernel': ['rbf', 'poly', 'sigmoid']}
-
-grid = GridSearchCV(SVC(), param_grid, refit=True, verbose=2)
-grid.fit(X_train, y_train)
-
-print(grid.best_estimator_)
-y_pred = grid.predict(X_test)
-print(classification_report(y_test, y_pred))
-
 naive = GaussianNB(var_smoothing=2e-9)
 naive.fit(X_train, y_train)
-print(naive.score(X_train, y_train))
-print(naive.score(X_test, y_test))
-y_pred = naive.predict(X_test)
-print(metrics.f1_score(y_test, y_pred))
+
+y_pred  = naive.predict(X_test)
+f1scornb = metrics.f1_score(y_test, y_pred)
+accscornb = naive.score(X_test, y_test)
+results_acc['NB']  = accscornb
+results_f1['NB']   = f1scornb
 plot_conf(naive)
+
+
+##########################Comparing models############################
+def compare_model_acc():
+    df    = pd.DataFrame(results_acc, index=['acc'])
+    df_t  = df.T
+    df_t['model'] = df_t.index
+
+    sns.barplot(x = 'model', y='acc', data=df_t)
+    plt.title('Models accuracy')
+    plt.show()
+
+def compare_model_f1():
+    df    = pd.DataFrame(results_f1, index=['f1'])
+    df_t  = df.T
+    df_t['model'] = df_t.index
+
+    sns.barplot(x = 'model', y='f1', data=df_t)
+    plt.title('Models F1 score')
+    plt.show()
+
+compare_model_f1()
+compare_model_acc()
