@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 
 from imblearn.over_sampling  import SMOTE
 from imblearn.under_sampling import RandomUnderSampler
+from imblearn.pipeline       import Pipeline
 from sklearn.preprocessing   import StandardScaler, MinMaxScaler
 from sklearn.linear_model    import LogisticRegression
 from sklearn.model_selection import train_test_split
@@ -24,7 +25,7 @@ from sklearn.ensemble        import AdaBoostClassifier, GradientBoostingClassifi
 from sklearn.naive_bayes     import GaussianNB
 from sklearn.neighbors       import KNeighborsClassifier
 from sklearn.model_selection import GridSearchCV
-from sklearn.utils           import shuffle
+
 
 data_path = r'C:\Users\jeron\OneDrive\Desktop\903group\data\framingham.csv'
 
@@ -39,7 +40,8 @@ features = ['male', 'age', 'education',
         'prevalentHyp', 'diabetes', 'totChol', 'sysBP',
         'diaBP', 'BMI', 'heartRate', 'glucose']
 
-not_standard = ['male', 'BPMeds', 'prevalentStroke', 'prevalentHyp', 'diabetes', 'TenYearCHD']
+not_standard = ['male', 'BPMeds', 'prevalentStroke',
+                'prevalentHyp', 'diabetes', 'TenYearCHD']
 need_standard = [x for x in features if x not in not_standard]
 features_to_scale = data_heart[need_standard]
 
@@ -63,11 +65,16 @@ boruta_select = BorutaPy(randomclf, n_estimators='auto',
 boruta_select.fit(np.array(X), np.array(y))
 
 features_importance = [X.columns[i] for i, boolean in enumerate(boruta_select.support_) if boolean]
-print(features_importance)
+
 not_important = [X.columns[i] for i , boolean in enumerate(boruta_select.support_) if not boolean]
 print(not_important)
+print(features_importance)
 
 X = X[features_importance]
+
+#15.2269% = 1
+#84.7731% = 0
+
 ####################################################################################################
 
 def plot_conf(model):
@@ -78,16 +85,13 @@ def plot_conf(model):
     plt.show()
 
 ####################################################################################################
-standard =StandardScaler()
-normalize = MinMaxScaler()
 
-over = SMOTE()
-under = RandomUnderSampler()
+over = SMOTE(sampling_strategy=0.2)
+under = RandomUnderSampler(sampling_strategy=0.8)
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, stratify=y)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.35, stratify=y)
 X_train, y_train = over.fit_resample(X_train, y_train)
 X_train,y_train = under.fit_resample(X_train, y_train)
-
 
 ######################################logistic regression###############################################################
 ###paremeter tuning for logistic regression
@@ -107,9 +111,7 @@ grid = GridSearchCV(log, param_grid=params, cv= 10, verbose=2, n_jobs= -1)
 b = grid.fit(X_train, y_train)
 print(b.best_estimator_)
 
-logmodel = LogisticRegression(C=0.012742749857031334, penalty='l1',
-                              solver='liblinear', max_iter = 1000,
-                              random_state=42)
+logmodel = LogisticRegression(C=0.08858667904100823, penalty='l1', solver='liblinear')
 
 logmodel.fit(X_train, y_train)
 print(classification_report(y_test, logmodel.predict(X_test)))
@@ -118,7 +120,9 @@ print(logmodel.score(X_test, y_test))
 sns.set_style('dark')
 sns.set_context('paper', font_scale=1.4)
 plot_conf(logmodel)
-
+#with just oversampling SMOTE , 0.65 acc and 0.36 f1 score
+#C=0.08858667904100823, penalty='l1', solver='liblinear, over ratio = 0.2, under = 0.8, f1_score = 0.39 , acc = 0.71
+#with oversampling ration 0.2 undersampling ratio 0.6 , params = C=0.03359818286283781, penalty='l1', solver='saga' f1 score= 0.35, acc =0.80
 #################################suppor vector hyperspace######################################
 svc = SVC(kernel='linear', C=100, gamma=1)
 svc.fit(X_train, y_train)
@@ -126,8 +130,7 @@ y_pred = svc.predict(X_test)
 
 plot_conf(svc)
 
-d = classification_report(y_test, y_pred)
-print(d)
+print(classification_report(y_test, y_pred))
 print(metrics.f1_score(y_test, y_pred))
 
 #########################Boosting#################################
