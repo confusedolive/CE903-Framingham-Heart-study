@@ -15,7 +15,7 @@
 ADD here information about the dataset and reason behind this project.
 
 ## Images
-![Examples](./code/visualization/variables correlation heatmap.png)
+![Examples](https://github.com/confusedolive/CE903-Framingham-Heart-study/blob/main/code/visualization/variables%20correlation%20heatmap.png?raw=true)
 
 ## Setup
 * Python= 3.x.x
