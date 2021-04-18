@@ -57,13 +57,14 @@ data_heart[need_standard] = features_scaled
 X = data_heart[features]
 y = data_heart[output]
 
+#15.2269% = 1
+#84.7731% = 0
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 #                                                      preprocessing  functions                                                                      #
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # boruta py recommends using pruned forest with a depth between 3-7
-
 
 def boruta_selected():
     randomclf = RandomForestClassifier(n_jobs=-1,
@@ -73,7 +74,7 @@ def boruta_selected():
     boruta_select = BorutaPy(randomclf, n_estimators='auto',
                              verbose=2, random_state=1)
 
-    boruta_select.fit(np.array(X_train), np.array(y_train))
+    boruta_select.fit(np.array(X), np.array(y))
 
     features_importance = [X.columns[i]
                            for i, boolean in enumerate(boruta_select.support_) if boolean]
@@ -84,6 +85,21 @@ def boruta_selected():
 
 
 def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, under_sampling=.5, test_size=.15):
+    '''
+       Utilizes sklearn train and split function to split the dataset
+       this functions is used to facilitate testing different oversampling,
+       undersampling ratios, test sizes and train sizes.
+       --------------------------------------------------------------------------
+
+              *  X,y are the paramters for x= features y=label
+              *  If oversample is True the X_train, Y_train gets oversampled utilizing SMOTE
+              *  If undersample is True  the X_train, Y_train gets undersampled utilizing RandomUnderSampler
+              *  over_sampling sets the sampling strategy for SMOTE over sampling
+              *  under_sampling sets the sampling strategy for RandomUnderSampler under sampling
+              *  test_size sets the size of the test set
+
+        --------------------------------------------------------------------------
+       '''
     if oversample:
         over = SMOTE(sampling_strategy=over_sampling)
     if undersample:
@@ -93,9 +109,8 @@ def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, 
     if oversample:
         X_train, y_train = over.fit_resample(X_train, y_train)
         if undersample:
-            x_train, y_train = under.fit_resample(X_train, y_train)
+            X_train, y_train = under.fit_resample(X_train, y_train)
     return X_train, X_test, y_train, y_test
-
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -176,9 +191,9 @@ def evaluate_model(model, modelname):
     print(
         f'The area under the curve for the precision recall curve is : {model_auc:.2f}')
     print(f"{modelname}'s acuracy is {model.score(X_test,y_test):.2f}")
-    print(f"{modelname}'s f1 score is {metrics.f1_score(y_test, y_predict):.2f}\n")
-    print(f"{modelname}'s precision is {metrics.precision_score(y_test, y_predict):.2f}\n")
-    print(f"{modelname}'s recall is {metrics.recall_score(y_test, y_predict):.2f}\n")
+    print(f"{modelname}'s f1 score is {metrics.f1_score(y_test, y_predict):.2f}")
+    print(f"{modelname}'s precision is {metrics.precision_score(y_test, y_predict):.2f}")
+    print(f"{modelname}'s recall is {metrics.recall_score(y_test, y_predict):.2f}")
     print('-' * 80, '\n')
     print('#' * 80, '\n')
     return metrics.recall_score(y_test, y_predict), metrics.precision_score(y_test, y_predict)\
@@ -187,29 +202,57 @@ def evaluate_model(model, modelname):
 
 ####################################################################################################
 
+#Split with get_train_test , oversample and undersample are both is false
 X_train, X_test, y_train, y_test = get_train_test(X,y)
 
+#List of tuples containing model name and models to be tested
 models = [
           ('Random Forest', RandomForestClassifier()),
           ('Logistic regression', LogisticRegression()),
           ('Decision tree ', DecisionTreeClassifier()),
-          ('Support vector maching', SVC())]
+          ('Support vector maching', SVC()),
+          ('Naive Bayes', GaussianNB())
+          ]
 
-#########RESULTS WITH no boruta select or any form of oversampling.
-scores_noboruta_nosampliing = {}
-for modelname, model  in models:
-    print(modelname,'\n')
-    recall, prec, auc_score, f1 = evaluate_model(model, modelname)
-    scores_noboruta_nosampliing[modelname] ={'Recall':recall, 'Precision':prec, 'Area under curve': auc_score, 'f1 score': f1}
+#Results with no boruta selected features or any form of oversampling.
 
-print(scores_noboruta_nosampliing)
-noboruta_sampling = pd.DataFrame(scores_noboruta_nosampliing)
+def evaluate_n_models(models):
+    '''
+    Tests different models , prints a report of each model
+    utilizing the evaluate_model function found in line 142
+    -------------------------------------------------------
 
-noboruta_sampling
+        * models = list of tuples containing (modelname, model)
+         e.g. (['Random Forest', RandomForestClassifier()'])
 
+    -------------------------------------------------------
+    returns a pandas dataframe with
+    index =
+        * Recall, precision, area under the curve and f1 score
+    columns =
+        * Model names
+    prints that same dataframe
+    ------------------------------------------------------
+    '''
+    scores_dict = {}
+    for modelname, model in models:
+        print(modelname, '\n')
+        recall, prec, auc_score, f1 = evaluate_model(model, modelname)
+        scores_dict[modelname] = {
+            'Recall': recall, 'Precision': prec, 'Area under curve': auc_score, 'f1 score': f1}
+    scores = pd.DataFrame(scores_dict)
+    print('-'*80,'\n')
+    print('All scores\n')
+    print(scores)
+    return scores
+
+noboruta_sampling = evaluate_n_models(models)
+
+#Testing with boruta selected features
+X_train, X_test, y_train, y_test = get_train_test(X,y, oversample=False, undersample=False, over_sampling=.2, under_sampling=.5, test_size=.15)
 
 features_importance, not_important = boruta_selected()
-
 X_train = X_train[features_importance]
 X_test = X_test[features_importance]
-features_importance
+
+boruta_feat = evaluate_n_models(models)
