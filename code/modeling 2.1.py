@@ -105,7 +105,6 @@ def ChiSquare(data_heart, output, alpha=0.01):
     for column in data_heart.columns:
         if column != output:
             cross = pd.crosstab(data_heart[column], data_heart[output])
-
             chi_square_value, p_value, _, _ = chi2_contingency(cross)
             if p_value <= alpha:
                 relevant.append(column)
