@@ -113,36 +113,6 @@ def ChiSquare(data_heart, output, alpha=0.01):
     return relevant, not_relevant
 
 
-def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, under_sampling=.5, test_size=.15):
-    '''
-      --------------------------------------------------------------------------
-       Utilizes sklearn train and split function to split the dataset
-       this functions is used to facilitate testing different oversampling,
-       undersampling ratios, test sizes and train sizes.
-       --------------------------------------------------------------------------
-
-              *  X,y are the paramters for x= features y=label
-              *  If oversample is True the X_train, Y_train gets oversampled utilizing SMOTE
-              *  If undersample is True  the X_train, Y_train gets undersampled
-                 utilizing RandomUnderSampler
-              *  over_sampling sets the sampling strategy for SMOTE over sampling
-              *  under_sampling sets the sampling strategy for RandomUnderSampler under sampling
-              *  test_size sets the size of the test set
-
-        --------------------------------------------------------------------------
-       '''
-    if oversample:
-        over = SMOTE(sampling_strategy=over_sampling)
-    if undersample:
-        under = RandomUnderSampler(sampling_strategy=under_sampling)
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=42)
-    if oversample:
-        X_train, y_train = over.fit_resample(X_train, y_train)
-        if undersample:
-            X_train, y_train = under.fit_resample(X_train, y_train)
-    return X_train, X_test, y_train, y_test
-
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 #                                                      Evaluation  functions                                                                         #
@@ -251,7 +221,7 @@ def evaluate_n_models(models, type_test):
     '''
     -------------------------------------------------------
     Tests different models , prints a report of each model
-    utilizing the evaluate_model function found in line 182
+    utilizing the evaluate_model function found in line 157
     -------------------------------------------------------
 
         * models = list of tuples containing (modelname, model)
@@ -311,6 +281,37 @@ def put_features(X_train, X_test, chi=False, boruta=False):
     train = X_train[features_importance]
     test = X_test[features_importance]
     return train, test
+
+def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, under_sampling=.5, test_size=.15):
+    '''
+      --------------------------------------------------------------------------
+       Utilizes sklearn train and split function to split the dataset
+       this functions is used to facilitate testing different oversampling,
+       undersampling ratios, test sizes and train sizes.
+       --------------------------------------------------------------------------
+
+              *  X,y are the paramters for x= features y=label
+              *  If oversample is True the X_train, Y_train gets oversampled utilizing SMOTE
+              *  If undersample is True  the X_train, Y_train gets undersampled
+                 utilizing RandomUnderSampler
+              *  over_sampling sets the sampling strategy for SMOTE over sampling
+              *  under_sampling sets the sampling strategy for RandomUnderSampler under sampling
+              *  test_size sets the size of the test set
+
+        --------------------------------------------------------------------------
+       '''
+    if oversample:
+        over = SMOTE(sampling_strategy=over_sampling)
+    if undersample:
+        under = RandomUnderSampler(sampling_strategy=under_sampling)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_size, random_state=42)
+    if oversample:
+        X_train, y_train = over.fit_resample(X_train, y_train)
+        if undersample:
+            X_train, y_train = under.fit_resample(X_train, y_train)
+    return X_train, X_test, y_train, y_test
+    
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 #                                                         Testing                                                                                    #
