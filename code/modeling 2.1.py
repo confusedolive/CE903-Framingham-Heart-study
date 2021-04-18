@@ -202,21 +202,8 @@ def evaluate_model(model, modelname):
 
 ####################################################################################################
 
-#Split with get_train_test , oversample and undersample are both is false
-X_train, X_test, y_train, y_test = get_train_test(X,y)
 
-#List of tuples containing model name and models to be tested
-models = [
-          ('Random Forest', RandomForestClassifier()),
-          ('Logistic regression', LogisticRegression()),
-          ('Decision tree ', DecisionTreeClassifier()),
-          ('Support vector maching', SVC()),
-          ('Naive Bayes', GaussianNB())
-          ]
-
-#Results with no boruta selected features or any form of oversampling.
-
-def evaluate_n_models(models):
+def evaluate_n_models(models, type_test):
     '''
     Tests different models , prints a report of each model
     utilizing the evaluate_model function found in line 142
@@ -225,6 +212,8 @@ def evaluate_n_models(models):
         * models = list of tuples containing (modelname, model)
          e.g. (['Random Forest', RandomForestClassifier()'])
 
+         *typetest is for clarification as to what parameters
+         are being tested , it will print a message before anything else
     -------------------------------------------------------
     returns a pandas dataframe with
     index =
@@ -234,6 +223,7 @@ def evaluate_n_models(models):
     prints that same dataframe
     ------------------------------------------------------
     '''
+    print(type_test, '\n')
     scores_dict = {}
     for modelname, model in models:
         print(modelname, '\n')
@@ -246,13 +236,33 @@ def evaluate_n_models(models):
     print(scores)
     return scores
 
-noboruta_sampling = evaluate_n_models(models)
+#Split with get_train_test , oversample and undersample are both is false
+X_train, X_test, y_train, y_test = get_train_test(X,y)
 
-#Testing with boruta selected features
+#List of tuples containing model name and models to be tested
+models = [
+          ('Random Forest', RandomForestClassifier()),
+          ('Logistic regression', LogisticRegression()),
+          ('Decision tree ', DecisionTreeClassifier()),
+          ('Support vector maching', SVC()),
+          ('Naive Bayes', GaussianNB())
+          ]
+
+noboruta_sampling = evaluate_n_models(models,'No feature selection no sampling techniques')
+
+#Testing with boruta selected features and no oversampling
 X_train, X_test, y_train, y_test = get_train_test(X,y, oversample=False, undersample=False, over_sampling=.2, under_sampling=.5, test_size=.15)
 
 features_importance, not_important = boruta_selected()
 X_train = X_train[features_importance]
 X_test = X_test[features_importance]
 
-boruta_feat = evaluate_n_models(models)
+boruta_feat = evaluate_n_models(models, 'Boruta for feature selection no sampling techniques')
+
+#Testing with boruta selected and just oversampling
+X_train, X_test, y_train, y_test = get_train_test(X,y, oversample=True, undersample=False, over_sampling=.2, under_sampling=.5, test_size=.15)
+
+features_importance, not_important = boruta_selected()
+X_train = X_train[features_importance]
+X_test = X_test[features_importance]
+boruta_oversampling = evaluate_n_models(models)
