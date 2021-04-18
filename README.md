@@ -67,7 +67,7 @@ In examples there are screen shots showing how to use functions found in modelli
 
 
 ## Code Examples
-Example of the results Utilizing the evaluate_n_models function available in modelling 2.1.py, shows the first report printed in the first figure , last figure shows the pandas dataframe produced out of the scores of all tested models:
+Example of the results Utilizing the evaluate_n_models function available in modelling 2.1.py, shows the first report printed in the first three images , last image shows the pandas dataframe produced out of the scores of all tested models:
 ![n_modles](https://github.com/confusedolive/CE903-Framingham-Heart-study/blob/main/example/example%20evaluate%20n%20models.PNG?raw=true)
 ![n_modles2](https://github.com/confusedolive/CE903-Framingham-Heart-study/blob/main/example/example%20evaluate%20n%20models%202.PNG?raw=true)
 ![n_modles3](https://github.com/confusedolive/CE903-Framingham-Heart-study/blob/main/example/example%20evaluate%20n%20models%203.PNG?raw=true)
