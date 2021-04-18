@@ -14,7 +14,7 @@
 ## General info
 Research with the intention to accurately predict the overall risk i.e. whether a patient is at risk or not, of coronary heart disease in 10 years
 The dataset contains 4230 total patients and 15 attributes, after getting rid of missing values this is left with 3658 total samples.
-The output is stored under the variable 'TenYearCHD' and shows a class imbalance after dropping missing values :
+The output is stored under the variable 'TenYearCHD' and shows a class imbalance before and after dropping missing values :
 
 * Class 0 | no risk | 3101 | 84.8%
 * Class 1 | ten year risk | 557 | 15.2%
@@ -22,7 +22,18 @@ The output is stored under the variable 'TenYearCHD' and shows a class imbalance
 This label imbalance can be seen in the following plot:<br/>
 ![label_balance](https://github.com/confusedolive/CE903-Framingham-Heart-study/blob/main/code/visualization/label%20balance.png?raw=true)
 
+We explore different predictive classification models  with the goal of tuning a model which can accurately classify both classes,
+for this the focus metrics of evaluation will be:
+
+* Precision
+* Recall
+* F1 score
+* Area under the curve (AUC) for the precision recall curve
+
+This metrics are chosen on the basis of dealing with an imbalanced dataset , in order to deal with this imbalanced the main techniques chosen are Synthetic Minority Oversampling Technique (SMOTE) and Random Under Sampling. <br/>
+It is important as well to note that  recall will be prioritised over precision as given the nature of the research False positives can be more dangerous than False negatives.
 ## Images
+A heatmap showing the correlation between variables in the dataset
 ![Examples](https://github.com/confusedolive/CE903-Framingham-Heart-study/blob/main/code/visualization/variables%20correlation%20heatmap.png?raw=true)
 
 ## Setup
