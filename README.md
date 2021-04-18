@@ -44,6 +44,7 @@ A heatmap showing the correlation between variables in the dataset
 * Matplotlib=3.2.2
 * Seaborn=0.11.1
 * Scipy=1.6.0
+* boruta=0.3
 ><br/>can be installed using:<br/>
 >> pip install -r /path/to/requirements.txt
 
