@@ -23,7 +23,7 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.utils import shuffle
 from xgboost import XGBClassifier
-
+from scipy.stats import chi2_contingency
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 #                                                      Loading Dataset                                                                               #
@@ -35,7 +35,7 @@ data_path = r'C:\Users\jeron\OneDrive\Desktop\903group\data\framingham.csv'
 data = pd.read_csv(data_path)
 data_heart = data.copy()
 data_heart.dropna(inplace=True)
-data.drop('currentSmoker', axis=1, inplace=True)
+data_heart.drop('currentSmoker', axis=1, inplace=True)
 # CurrentSmoker is irrelevant considering we have cigsperday, therefore is dropped.
 
 output = 'TenYearCHD'
@@ -46,6 +46,8 @@ features = ['male', 'age', 'education',
 
 not_standard = ['male', 'BPMeds', 'prevalentStroke',
                 'prevalentHyp', 'diabetes', 'TenYearCHD']
+
+#features that need standarizing i.e. continuous featuers
 need_standard = [x for x in features if x not in not_standard]
 features_to_scale = data_heart[need_standard]
 
@@ -83,6 +85,33 @@ def boruta_selected():
                      for i, boolean in enumerate(boruta_select.support_) if not boolean]
     return features_importance, not_important
 
+def ChiSquare(data_heart,output, alpha=0.01):
+    '''
+      ----------------------------------------------------
+       Utilizes the chi squared test to assest relevance
+       in features, if a feature's p value is below or
+       equal to  alpha it is considered relevant
+       ----------------------------------------------------
+            * data_heart = Dataset
+            * output = Label class
+            * alpha= p value threshold
+       ----------------------------------------------------
+       returns a list of relevant and not relevant features
+       '''
+    relevant = []
+    not_relevant = []
+    for column in data_heart.columns:
+        if column != output:
+            cross = pd.crosstab(data_heart[column], data_heart[output])
+
+            chi_square_value, p_value, _, _ = chi2_contingency(cross)
+            if p_value <= alpha:
+                relevant.append(column)
+            else:
+                not_relevant.append(column)
+    return relevant, not_relevant
+rel, not_rel =ChiSquare(data_heart, output)
+
 
 def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, under_sampling=.5, test_size=.15):
     '''
@@ -107,7 +136,7 @@ def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, 
     if undersample:
         under = RandomUnderSampler(sampling_strategy=under_sampling)
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size)
+        X, y, test_size=test_size, random_state=42)
     if oversample:
         X_train, y_train = over.fit_resample(X_train, y_train)
         if undersample:
@@ -185,9 +214,12 @@ def evaluate_model(model, modelname):
     print('-' * 80, '\n')
     try:
         plot_conf(model)
+        con = tf.math.confusion_matrix(
+        labels=y_test, predictions=y_predict).numpy()
+        print(con)
     except:
         con = tf.math.confusion_matrix(
-        labels=y, predictions=y_pred).numpy()
+        labels=y_test, predictions=y_predict).numpy()
         print(con)
     print('-' * 80, '\n')
     print(' '*20, f'Classification report of  {modelname}\n')
@@ -220,7 +252,7 @@ def evaluate_n_models(models, type_test):
     '''
     -------------------------------------------------------
     Tests different models , prints a report of each model
-    utilizing the evaluate_model function found in line 142
+    utilizing the evaluate_model function found in line 184
     -------------------------------------------------------
 
         * models = list of tuples containing (modelname, model)
@@ -251,8 +283,7 @@ def evaluate_n_models(models, type_test):
     print(scores)
     return scores
 
-#Split with get_train_test , oversample and undersample are both is false
-X_train, X_test, y_train, y_test = get_train_test(X,y)
+
 
 #List of tuples containing model name and models to be tested
 def get_models():
@@ -263,23 +294,40 @@ def get_models():
               ('Logistic regression', LogisticRegression()),
               ('Decision tree ', DecisionTreeClassifier()),
               ('Support vector maching', SVC()),
-              ('Naive Bayes', GaussianNB())
+              ('Naive Bayes', GaussianNB()),
               ]
     return models
 
-    
+#Split with get_train_test , oversample and undersample are both is false, no boruta selected features
+X_train, X_test, y_train, y_test = get_train_test(X,y)
 noboruta_sampling = evaluate_n_models(get_models(),'No feature selection no sampling techniques')
 
 #Testing with boruta selected features and no oversampling
-X_train, X_test, y_train, y_test = get_train_test(X,y, oversample=False, undersample=False, over_sampling=.2, under_sampling=.5, test_size=.15)
+X_train, X_test, y_train, y_test = get_train_test(X,y, oversample=False,
+            undersample=False, over_sampling=.2, under_sampling=.5, test_size=.2)
 
+#For the next tests boruta_selected() is used to selecte relevant features,
+#X_train and X_test features that are not relevant are dropped
 features_importance, not_important = boruta_selected()
-X_train = X_train[features_importance]
-X_test = X_test[features_importance]
-
+def put_features(X_train, X_test):
+    X_train = X_train[features_importance]
+    X_test = X_test[features_importance]
+put_features(X_train, X_test)
 boruta_feat = evaluate_n_models(get_models(), 'Boruta for feature selection no sampling techniques')
 
 #Testing with boruta selected and just oversampling
-X_train, X_test, y_train, y_test = get_train_test(X,y, oversample=True, undersample=False, over_sampling=.4, under_sampling=.5, test_size=.15)
+X_train, X_test, y_train, y_test = get_train_test(X,y, oversample=True, undersample=False,
+            over_sampling=.9, under_sampling=.5, test_size=.2)
 
-boruta_oversampling = evaluate_n_models(get_models(), 'Boruta features and oversampling ration .4')
+put_features(X_train, X_test)
+print(y_train.value_counts())
+boruta_oversampling_heavy = evaluate_n_models(get_models(), 'Boruta features and oversampling ration .9')
+
+#boruta features undersampling and oversampling
+X_train, X_test, y_train, y_test = get_train_test(X,y, oversample=True, undersample=True,
+            over_sampling=.2, under_sampling=.8, test_size=.3)
+
+put_features(X_train, X_test)
+print(y_train.value_counts())
+boruta_oversampling_heavy = evaluate_n_models(get_models(), 'Boruta features oversampling ratio .3 undersampling ratio .8')
+~
