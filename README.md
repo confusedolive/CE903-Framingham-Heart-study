@@ -48,7 +48,23 @@ A heatmap showing the correlation between variables in the dataset
 >> pip install -r /path/to/requirements.txt
 
 ## How to
-Section to write the correct steps to execute all code, essentially a guide on how to use the available data to produce the results in the paper
+This repository is separated into three folders:
+
+* code
+* data
+* example
+
+with in the code folder there is another folder called visualization which contains all graphs produced, the code folder also containes 2 .py files:
+
+* modelling x.x.py
+* visualize.py
+
+In modelling all pre-processing, feature selecting, hyperparameter tuning and evaluating is carried out.
+Visualize contains all the code utilized to create the graphs found in the folder visualization.
+In the folder data the Framingham Heart Study dataset can be found.
+In examples there are screen shots showing how to use functions found in modelling.py
+
+
 ## Code Examples
 * Borutapy implementation for feature selection available in code/processingv1-0.py:
 ![boruta](https://github.com/confusedolive/CE903-Framingham-Heart-study/blob/main/example/Borutapy%20implementation.PNG?raw=true)
