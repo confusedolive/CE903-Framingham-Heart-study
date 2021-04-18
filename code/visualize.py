@@ -7,7 +7,7 @@ from scipy import stats
 from matplotlib import cm
 
 data_path = r'C:\Users\jeron\OneDrive\Desktop\903group\data\framingham.csv'
-figures_path = r'C:\Users\jeron\OneDrive\Desktop\903group\code\visualization'
+figures_path = r'C:\Users\jeron\OneDrive\Desktop\CE903-Framingham-Heart-study\code\visualization'
 
 #####load data#####
 data_heart = pd.read_csv(data_path)
@@ -39,7 +39,7 @@ def label_balance():
     plt.title('Balance in output')
     plt.savefig(os.path.join(figures_path, 'label balance'))
     plt.show()
-label_balance()
+
 #visualize label inbalance by gender
 def label_balance_gender():
     df = df_heart.copy()
