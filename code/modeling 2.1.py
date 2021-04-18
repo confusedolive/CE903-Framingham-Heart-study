@@ -86,6 +86,7 @@ def boruta_selected():
 
 def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, under_sampling=.5, test_size=.15):
     '''
+      --------------------------------------------------------------------------
        Utilizes sklearn train and split function to split the dataset
        this functions is used to facilitate testing different oversampling,
        undersampling ratios, test sizes and train sizes.
@@ -93,7 +94,8 @@ def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, 
 
               *  X,y are the paramters for x= features y=label
               *  If oversample is True the X_train, Y_train gets oversampled utilizing SMOTE
-              *  If undersample is True  the X_train, Y_train gets undersampled utilizing RandomUnderSampler
+              *  If undersample is True  the X_train, Y_train gets undersampled
+                 utilizing RandomUnderSampler
               *  over_sampling sets the sampling strategy for SMOTE over sampling
               *  under_sampling sets the sampling strategy for RandomUnderSampler under sampling
               *  test_size sets the size of the test set
@@ -119,6 +121,16 @@ def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 
 def pre_recall_auc(y_p, y_t, label):
+    '''
+    -------------------------------------------------
+    Plots the precision recall curve
+    and returns the area under the curve(auc) for it
+    -------------------------------------------------
+        * y_p = Predicted labels
+        * y_t = True labels
+        * label = model label
+    -------------------------------------------------
+    '''
     prec, rec, threshold = precision_recall_curve(y_p, y_t)
     auc_score = auc(rec, prec)
 
@@ -132,6 +144,7 @@ def pre_recall_auc(y_p, y_t, label):
     return auc_score
 
 def plot_conf(model):
+    ''' plots and shows confusion matrix for model'''
     conf = plot_confusion_matrix(model, X_test, y_test,
                                  display_labels=[0,1],
                                  cmap=plt.cm.Blues,
@@ -146,10 +159,10 @@ def evaluate_model(model, modelname):
     of the relevant metrics and performance of the model/models wiht a focus in
     precision and recall , prints:
 
-               -Confusion matrix
-               -Classification report
-               -Precision recall curve and area under curve
-               -Prints and returns Accuracy, F1 score, Precision, Recall
+               * Confusion matrix
+               * Classification report
+               * Precision recall curve and area under curve
+               * Prints and returns Accuracy, F1 score, Precision, Recall
 
     ------------------------------------------------------------------------------------------
     Model is the model to be evaulated e.g. modle=LogisticRegression(),
@@ -205,6 +218,7 @@ def evaluate_model(model, modelname):
 
 def evaluate_n_models(models, type_test):
     '''
+    -------------------------------------------------------
     Tests different models , prints a report of each model
     utilizing the evaluate_model function found in line 142
     -------------------------------------------------------
@@ -214,6 +228,7 @@ def evaluate_n_models(models, type_test):
 
          *typetest is for clarification as to what parameters
          are being tested , it will print a message before anything else
+
     -------------------------------------------------------
     returns a pandas dataframe with
     index =
@@ -240,15 +255,20 @@ def evaluate_n_models(models, type_test):
 X_train, X_test, y_train, y_test = get_train_test(X,y)
 
 #List of tuples containing model name and models to be tested
-models = [
-          ('Random Forest', RandomForestClassifier()),
-          ('Logistic regression', LogisticRegression()),
-          ('Decision tree ', DecisionTreeClassifier()),
-          ('Support vector maching', SVC()),
-          ('Naive Bayes', GaussianNB())
-          ]
+def get_models():
+    '''returns list of models containing
+       tuples with (modelname, model)'''
+    models = [
+              ('Random Forest', RandomForestClassifier()),
+              ('Logistic regression', LogisticRegression()),
+              ('Decision tree ', DecisionTreeClassifier()),
+              ('Support vector maching', SVC()),
+              ('Naive Bayes', GaussianNB())
+              ]
+    return models
 
-noboruta_sampling = evaluate_n_models(models,'No feature selection no sampling techniques')
+    
+noboruta_sampling = evaluate_n_models(get_models(),'No feature selection no sampling techniques')
 
 #Testing with boruta selected features and no oversampling
 X_train, X_test, y_train, y_test = get_train_test(X,y, oversample=False, undersample=False, over_sampling=.2, under_sampling=.5, test_size=.15)
@@ -257,12 +277,9 @@ features_importance, not_important = boruta_selected()
 X_train = X_train[features_importance]
 X_test = X_test[features_importance]
 
-boruta_feat = evaluate_n_models(models, 'Boruta for feature selection no sampling techniques')
+boruta_feat = evaluate_n_models(get_models(), 'Boruta for feature selection no sampling techniques')
 
 #Testing with boruta selected and just oversampling
-X_train, X_test, y_train, y_test = get_train_test(X,y, oversample=True, undersample=False, over_sampling=.2, under_sampling=.5, test_size=.15)
+X_train, X_test, y_train, y_test = get_train_test(X,y, oversample=True, undersample=False, over_sampling=.4, under_sampling=.5, test_size=.15)
 
-features_importance, not_important = boruta_selected()
-X_train = X_train[features_importance]
-X_test = X_test[features_importance]
-boruta_oversampling = evaluate_n_models(models)
+boruta_oversampling = evaluate_n_models(get_models(), 'Boruta features and oversampling ration .4')
