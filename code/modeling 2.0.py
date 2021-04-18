@@ -30,8 +30,13 @@ from sklearn.model_selection import GridSearchCV
 data_path = r'C:\Users\jeron\OneDrive\Desktop\903group\data\framingham.csv'
 
 data = pd.read_csv(data_path)
+print(len(data))
+print(data['TenYearCHD'].value_counts())
 data_heart = data.copy()
 data_heart.dropna(inplace=True)
+print(len(data_heart))
+print(data_heart['TenYearCHD'].value_counts())
+
 data.drop('currentSmoker',axis=1, inplace=True)
 
 output = 'TenYearCHD'

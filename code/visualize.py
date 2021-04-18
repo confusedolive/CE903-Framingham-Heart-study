@@ -39,7 +39,7 @@ def label_balance():
     plt.title('Balance in output')
     plt.savefig(os.path.join(figures_path, 'label balance'))
     plt.show()
-
+label_balance()
 #visualize label inbalance by gender
 def label_balance_gender():
     df = df_heart.copy()
@@ -50,7 +50,7 @@ def label_balance_gender():
 
     face_gender.map(sns.histplot, 'TenYearCHD')
     plt.xticks([0,1])
-    plt.savefig(os.path.join(figures_path, 'label balance'))
+    plt.savefig(os.path.join(figures_path, 'label balance gender'))
     plt.show()
 
 #label balance per categorical features, found in dict attributes['categorical']
