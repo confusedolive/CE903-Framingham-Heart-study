@@ -69,7 +69,6 @@ y = data_heart[output]
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 
-
 def boruta_selected():
     randomclf = RandomForestClassifier(n_jobs=-1,
                                        max_depth=6, n_estimators=1000,
@@ -289,7 +288,6 @@ def evaluate_n_models(models, type_test):
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 
-
 def get_models():
     '''returns list of models containing
        tuples with (modelname, model)'''
@@ -302,40 +300,40 @@ def get_models():
     ]
     return models
 
-
 def put_features(X_train, X_test, chi=False, boruta=False):
     '''Takes X train and X test and converts the features
     to features selected by either Chi Squared test if chi is set to True
-    or features selected by boruta if boruta is set to True'''
+    or features selected by boruta if boruta is set to True,
+    returns train set and test set'''
     if chi:
         features_importance, not_important = ChiSquare(data_heart, output)
     if boruta:
         features_importance, not_important = boruta_selected()
-    X_train = X_train[features_importance]
-    X_test = X_test[features_importance]
-
+    train = X_train[features_importance]
+    test = X_test[features_importance]
+    return train, test
+# ---------------------------------------------------------------------------------------------------------------------------------------------------#
+# ---------------------------------------------------------------------------------------------------------------------------------------------------#
+#                                                         Testing                                                                                    #
+# ---------------------------------------------------------------------------------------------------------------------------------------------------#
+# ---------------------------------------------------------------------------------------------------------------------------------------------------#
 
 # Split with get_train_test , oversample and undersample are both is false, no boruta selected features
 X_train, X_test, y_train, y_test = get_train_test(X, y)
 noboruta_sampling = evaluate_n_models(
     get_models(), 'No feature selection no sampling techniques')
 
-# Testing with boruta selected features and no oversampling
+#Boruta testing
 X_train, X_test, y_train, y_test = get_train_test(X, y, oversample=False,
                                                   undersample=False, over_sampling=.2, under_sampling=.5, test_size=.2)
-
-# For the next tests boruta_selected() is used to selecte relevant features,
-# X_train and X_test features that are not relevant are dropped
-features_importance, not_important = boruta_selected()
-rel, not_rel = ChiSquare(data_heart, output)
-
-print(features_importance)
-print(rel)
+X_train , X_test = put_features(X_train, X_test,  boruta=True)
+chi_feat = evaluate_n_models(get_models(), 'chi squared features no oversampling')
 
 put_features(X_train, X_test, boruta=True)
 boruta_feat = evaluate_n_models(
     get_models(), 'Boruta for feature selection no sampling techniques')
 
+#Chi squared testing
 # Testing with boruta selected and just oversampling
 X_train, X_test, y_train, y_test = get_train_test(X, y, oversample=True, undersample=False,
                                                   over_sampling=.9, under_sampling=.5, test_size=.2)
