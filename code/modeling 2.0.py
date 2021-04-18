@@ -119,8 +119,7 @@ grid = GridSearchCV(log, param_grid=params, cv= 10, verbose=2, n_jobs= -1)
 b = grid.fit(X_train, y_train)
 print(b.best_estimator_)
 
-logmodel = LogisticRegression(C=0.03359818286283781, l1_ratio=0.5, penalty='elasticnet',
-                   solver='saga')
+logmodel = LogisticRegression(C=11.288378916846883, penalty='l1', solver='saga')
 logmodel.fit(X_train, y_train)
 
 print(classification_report(y_test, logmodel.predict(X_test)))
