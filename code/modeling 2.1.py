@@ -7,6 +7,7 @@ from boruta import BorutaPy
 from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 from mlxtend.classifier import EnsembleVoteClassifier
+from scipy.stats import chi2_contingency
 from sklearn import metrics
 from sklearn.ensemble import (AdaBoostClassifier, BaggingClassifier,
                               GradientBoostingClassifier,
@@ -23,7 +24,7 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.utils import shuffle
 from xgboost import XGBClassifier
-from scipy.stats import chi2_contingency
+
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 #                                                      Loading Dataset                                                                               #
@@ -47,7 +48,7 @@ features = ['male', 'age', 'education',
 not_standard = ['male', 'BPMeds', 'prevalentStroke',
                 'prevalentHyp', 'diabetes', 'TenYearCHD']
 
-#features that need standarizing i.e. continuous featuers
+# features that need standarizing i.e. continuous featuers
 need_standard = [x for x in features if x not in not_standard]
 features_to_scale = data_heart[need_standard]
 
@@ -59,14 +60,15 @@ data_heart[need_standard] = features_scaled
 X = data_heart[features]
 y = data_heart[output]
 
-#15.2269% = 1
-#84.7731% = 0
+# Label balance
+#     15.2269% = 1 | heart risk
+#     84.7731% = 0 | no heart risk
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
-#                                                      preprocessing  functions                                                                      #
+#                                               preprocessing and feature selection functions                                                                      #
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
-# boruta py recommends using pruned forest with a depth between 3-7
+
 
 def boruta_selected():
     randomclf = RandomForestClassifier(n_jobs=-1,
@@ -85,7 +87,8 @@ def boruta_selected():
                      for i, boolean in enumerate(boruta_select.support_) if not boolean]
     return features_importance, not_important
 
-def ChiSquare(data_heart,output, alpha=0.01):
+
+def ChiSquare(data_heart, output, alpha=0.01):
     '''
       ----------------------------------------------------
        Utilizes the chi squared test to assest relevance
@@ -110,7 +113,6 @@ def ChiSquare(data_heart,output, alpha=0.01):
             else:
                 not_relevant.append(column)
     return relevant, not_relevant
-rel, not_rel =ChiSquare(data_heart, output)
 
 
 def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, under_sampling=.5, test_size=.15):
@@ -149,6 +151,7 @@ def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 
+
 def pre_recall_auc(y_p, y_t, label):
     '''
     -------------------------------------------------
@@ -172,14 +175,16 @@ def pre_recall_auc(y_p, y_t, label):
 
     return auc_score
 
+
 def plot_conf(model):
     ''' plots and shows confusion matrix for model'''
     conf = plot_confusion_matrix(model, X_test, y_test,
-                                 display_labels=[0,1],
+                                 display_labels=[0, 1],
                                  cmap=plt.cm.Blues,
                                  normalize='true')
     plt.title('Confusion matrix')
     plt.show()
+
 
 def evaluate_model(model, modelname):
     '''
@@ -203,35 +208,35 @@ def evaluate_model(model, modelname):
     y_predict = model.predict(X_test)
 
     print('#' * 80, '\n')
-    print(' '*(40-len(modelname)), modelname, ' evaluation\n')
+    print(' ' * (40 - len(modelname)), modelname, ' evaluation\n')
     print('-' * 80, '\n')
     print(f'{modelname} fited in train set and evaluated in test set')
     print(f'Unbalance label being  a problem the focus of evaluation is in precision and recall\n')
     print('-' * 80, '\n')
     print('#' * 80, '\n')
     print('-' * 80, '\n')
-    print(' '*25, f'Confusion matrix of {modelname}\n')
+    print(' ' * 25, f'Confusion matrix of {modelname}\n')
     print('-' * 80, '\n')
     try:
         plot_conf(model)
         con = tf.math.confusion_matrix(
-        labels=y_test, predictions=y_predict).numpy()
+            labels=y_test, predictions=y_predict).numpy()
         print(con)
     except:
         con = tf.math.confusion_matrix(
-        labels=y_test, predictions=y_predict).numpy()
+            labels=y_test, predictions=y_predict).numpy()
         print(con)
     print('-' * 80, '\n')
-    print(' '*20, f'Classification report of  {modelname}\n')
+    print(' ' * 20, f'Classification report of  {modelname}\n')
     print('-' * 80, '\n')
     print(classification_report(y_test, y_predict))
     print('-' * 80, '\n')
-    print(' '*20, f'Precision-recall curve of {modelname}\n')
+    print(' ' * 20, f'Precision-recall curve of {modelname}\n')
     print('-' * 80, '\n')
     model_auc = pre_recall_auc(y_predict, y_test, modelname)
     print('\n')
     print('-' * 80, '\n')
-    print(' '*20, 'Metrics\n')
+    print(' ' * 20, 'Metrics\n')
     print('-' * 80, '\n')
     print(
         f'The area under the curve for the precision recall curve is : {model_auc:.2f}')
@@ -241,18 +246,14 @@ def evaluate_model(model, modelname):
     print(f"{modelname}'s recall is {metrics.recall_score(y_test, y_predict):.2f}")
     print('-' * 80, '\n')
     print('#' * 80, '\n')
-    return metrics.recall_score(y_test, y_predict), metrics.precision_score(y_test, y_predict)\
-                ,model_auc, metrics.f1_score(y_test, y_predict)
-
-
-####################################################################################################
+    return metrics.recall_score(y_test, y_predict), metrics.precision_score(y_test, y_predict), model_auc, metrics.f1_score(y_test, y_predict)
 
 
 def evaluate_n_models(models, type_test):
     '''
     -------------------------------------------------------
     Tests different models , prints a report of each model
-    utilizing the evaluate_model function found in line 184
+    utilizing the evaluate_model function found in line 182
     -------------------------------------------------------
 
         * models = list of tuples containing (modelname, model)
@@ -278,56 +279,77 @@ def evaluate_n_models(models, type_test):
         scores_dict[modelname] = {
             'Recall': recall, 'Precision': prec, 'Area under curve': auc_score, 'f1 score': f1}
     scores = pd.DataFrame(scores_dict)
-    print('-'*80,'\n')
+    print('-' * 80, '\n')
     print('All scores\n')
     print(scores)
     return scores
+# ---------------------------------------------------------------------------------------------------------------------------------------------------#
+# ---------------------------------------------------------------------------------------------------------------------------------------------------#
+#                                               Set selection, processing and models functions                                                       #
+# ---------------------------------------------------------------------------------------------------------------------------------------------------#
+# ---------------------------------------------------------------------------------------------------------------------------------------------------#
 
 
-
-#List of tuples containing model name and models to be tested
 def get_models():
     '''returns list of models containing
        tuples with (modelname, model)'''
     models = [
-              ('Random Forest', RandomForestClassifier()),
-              ('Logistic regression', LogisticRegression()),
-              ('Decision tree ', DecisionTreeClassifier()),
-              ('Support vector maching', SVC()),
-              ('Naive Bayes', GaussianNB()),
-              ]
+        ('Random Forest', RandomForestClassifier()),
+        ('Logistic regression', LogisticRegression()),
+        ('Decision tree ', DecisionTreeClassifier()),
+        ('Support vector maching', SVC()),
+        ('Naive Bayes', GaussianNB()),
+    ]
     return models
 
-#Split with get_train_test , oversample and undersample are both is false, no boruta selected features
-X_train, X_test, y_train, y_test = get_train_test(X,y)
-noboruta_sampling = evaluate_n_models(get_models(),'No feature selection no sampling techniques')
 
-#Testing with boruta selected features and no oversampling
-X_train, X_test, y_train, y_test = get_train_test(X,y, oversample=False,
-            undersample=False, over_sampling=.2, under_sampling=.5, test_size=.2)
-
-#For the next tests boruta_selected() is used to selecte relevant features,
-#X_train and X_test features that are not relevant are dropped
-features_importance, not_important = boruta_selected()
-def put_features(X_train, X_test):
+def put_features(X_train, X_test, chi=False, boruta=False):
+    '''Takes X train and X test and converts the features
+    to features selected by either Chi Squared test if chi is set to True
+    or features selected by boruta if boruta is set to True'''
+    if chi:
+        features_importance, not_important = ChiSquare(data_heart, output)
+    if boruta:
+        features_importance, not_important = boruta_selected()
     X_train = X_train[features_importance]
     X_test = X_test[features_importance]
-put_features(X_train, X_test)
-boruta_feat = evaluate_n_models(get_models(), 'Boruta for feature selection no sampling techniques')
 
-#Testing with boruta selected and just oversampling
-X_train, X_test, y_train, y_test = get_train_test(X,y, oversample=True, undersample=False,
-            over_sampling=.9, under_sampling=.5, test_size=.2)
 
-put_features(X_train, X_test)
+# Split with get_train_test , oversample and undersample are both is false, no boruta selected features
+X_train, X_test, y_train, y_test = get_train_test(X, y)
+noboruta_sampling = evaluate_n_models(
+    get_models(), 'No feature selection no sampling techniques')
+
+# Testing with boruta selected features and no oversampling
+X_train, X_test, y_train, y_test = get_train_test(X, y, oversample=False,
+                                                  undersample=False, over_sampling=.2, under_sampling=.5, test_size=.2)
+
+# For the next tests boruta_selected() is used to selecte relevant features,
+# X_train and X_test features that are not relevant are dropped
+features_importance, not_important = boruta_selected()
+rel, not_rel = ChiSquare(data_heart, output)
+
+print(features_importance)
+print(rel)
+
+put_features(X_train, X_test, boruta=True)
+boruta_feat = evaluate_n_models(
+    get_models(), 'Boruta for feature selection no sampling techniques')
+
+# Testing with boruta selected and just oversampling
+X_train, X_test, y_train, y_test = get_train_test(X, y, oversample=True, undersample=False,
+                                                  over_sampling=.9, under_sampling=.5, test_size=.2)
+
+put_features(X_train, X_test, boruta=True)
 print(y_train.value_counts())
-boruta_oversampling_heavy = evaluate_n_models(get_models(), 'Boruta features and oversampling ration .9')
+boruta_oversampling_heavy = evaluate_n_models(
+    get_models(), 'Boruta features and oversampling ration .9')
 
-#boruta features undersampling and oversampling
-X_train, X_test, y_train, y_test = get_train_test(X,y, oversample=True, undersample=True,
-            over_sampling=.2, under_sampling=.8, test_size=.3)
+# boruta features undersampling and oversampling
+X_train, X_test, y_train, y_test = get_train_test(X, y, oversample=True, undersample=True,
+                                                  over_sampling=.2, under_sampling=.8, test_size=.3)
 
-put_features(X_train, X_test)
+put_features(X_train, X_test, boruta=True)
 print(y_train.value_counts())
-boruta_oversampling_heavy = evaluate_n_models(get_models(), 'Boruta features oversampling ratio .3 undersampling ratio .8')
-~
+boruta_oversampling_heavy = evaluate_n_models(
+    get_models(), 'Boruta features oversampling ratio .3 undersampling ratio .8')
