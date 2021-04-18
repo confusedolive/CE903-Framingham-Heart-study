@@ -12,12 +12,15 @@
 * [Contact](#contact)
 
 ## General info
-Research with the intention to accurately predict the overall risk i.e. wether a patient is at risk or not, of coronary heart disease in 10 years
+Research with the intention to accurately predict the overall risk i.e. whether a patient is at risk or not, of coronary heart disease in 10 years
 The dataset contains 4230 total patients and 15 attributes, after getting rid of missing values this is left with 3658 total samples.
-The output is stored under the variable 'TenYearCHD' and shows a class unbalance after dropping missing values :
+The output is stored under the variable 'TenYearCHD' and shows a class imbalance after dropping missing values :
+
 * Class 0 | no risk | 3101 | 84.8%
 * Class 1 | ten year risk | 557 | 15.2%
 
+This label imbalance can be seen in the following plot:<br/>
+![label_balance](https://github.com/confusedolive/CE903-Framingham-Heart-study/blob/main/code/visualization/label%20balance.png?raw=true)
 
 ## Images
 ![Examples](https://github.com/confusedolive/CE903-Framingham-Heart-study/blob/main/code/visualization/variables%20correlation%20heatmap.png?raw=true)
