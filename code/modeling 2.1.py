@@ -25,6 +25,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.utils import shuffle
 from xgboost import XGBClassifier
 from imblearn.combine import SMOTETomek
+from collections import Counter
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 #                                                      Loading Dataset                                                                               #
@@ -35,7 +36,7 @@ data_path = r'C:\Users\jeron\OneDrive\Desktop\903group\data\framingham.csv'
 
 data = pd.read_csv(data_path)
 data_heart = data.copy()
-data_heart_means = data_heart.apply(lambda x: x.fillna(x.mean()), axis=0)
+#data_heart_means = data_heart.apply(lambda x: x.fillna(x.mean()), axis=0)
 data_heart.dropna(inplace=True)
 data_heart.drop('currentSmoker', axis=1, inplace=True)
 # CurrentSmoker is irrelevant considering we have cigsperday, therefore is dropped.
@@ -47,18 +48,29 @@ features = ['male', 'age', 'education',
             'diaBP', 'BMI', 'heartRate', 'glucose']
 
 not_standard = ['male', 'BPMeds', 'prevalentStroke',
-                'prevalentHyp', 'diabetes', 'TenYearCHD']
+                'prevalentHyp', 'diabetes', 'TenYearCHD', 'education']
 
 # features that need standarizing i.e. continuous featuers
 need_standard = [x for x in features if x not in not_standard]
-features_to_scale = data_heart_means[need_standard]
+features_to_scale = data_heart[need_standard]
 
+#check whether any of the categorical varaibles needs to be one hot encoded
+for feature in not_standard:
+    print(data_heart[feature].value_counts())
+
+print(need_standard)
+
+#standarize all continuous features
 scaler = StandardScaler()
 features_scaled = scaler.fit_transform(features_to_scale.values)
-data_heart_means[need_standard] = features_scaled
+#encodes education
+data_heart = pd.get_dummies(data_heart, columns=['education'], prefix='dumm')
+data_heart[need_standard] = features_scaled
+features = [feat for feat in data_heart.columns if feat not in output]
 
-X = data_heart_means[features]
-y = data_heart_means[output]
+#separate features and output
+X = data_heart[features]
+y = data_heart[output]
 
 
 # Label balance
@@ -102,24 +114,33 @@ def ChiSquare(data_heart, output, alpha=0.01):
        returns a list of relevant and not relevant features
        '''
     relevant = []
+    relevant_pval = []
     not_relevant = []
+    not_relevant_pval = []
     for column in data_heart.columns:
         if column != output:
             cross = pd.crosstab(data_heart[column], data_heart[output])
             chi_square_value, p_value, _, _ = chi2_contingency(cross)
             if p_value <= alpha:
                 relevant.append(column)
+                relevant_pval.append(p_value)
             else:
                 not_relevant.append(column)
-    return relevant, not_relevant
+                not_relevant.append(p_value)
 
+    relevant.append('totChol')
+    return relevant,relevant_pval, not_relevant, not_relevant_pval
 
+#get relevant features and their p_values to understand which features are statisticially significant
+relevant, relevant_p, not_relevant, not_relevant_p = ChiSquare(data_heart, output)
+relevant_pvals_chi = list(zip(relevant, relevant_p))
+for tup in relevant_pvals_chi:
+    print(tup)
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 #                                                      Evaluation  functions                                                                         #
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
-
 
 def pre_recall_auc(y_p, y_t, label):
     '''
@@ -215,7 +236,8 @@ def evaluate_model(model, modelname):
     print(f"{modelname}'s recall is {metrics.recall_score(y_test, y_predict):.2f}")
     print('-' * 80, '\n')
     print('#' * 80, '\n')
-    return metrics.recall_score(y_test, y_predict), metrics.precision_score(y_test, y_predict), model_auc, metrics.f1_score(y_test, y_predict)
+    return metrics.recall_score(y_test, y_predict), metrics.precision_score(y_test, y_predict)\
+                    ,model_auc, metrics.f1_score(y_test, y_predict),model.score(X_test, y_test)
 
 
 def evaluate_n_models(models, type_test):
@@ -244,9 +266,10 @@ def evaluate_n_models(models, type_test):
     scores_dict = {}
     for modelname, model in models:
         print(modelname, '\n')
-        recall, prec, auc_score, f1 = evaluate_model(model, modelname)
+        recall, prec, auc_score, f1, acc = evaluate_model(model, modelname)
         scores_dict[modelname] = {
-            'Recall': recall, 'Precision': prec, 'Area under curve': auc_score, 'f1 score': f1}
+            'Recall': recall, 'Precision': prec,
+             'Area under curve': auc_score, 'f1 score': f1, 'Accuracy':acc }
     scores = pd.DataFrame(scores_dict)
     print('-' * 80, '\n')
     print('All scores\n')
@@ -263,10 +286,10 @@ def get_models():
        tuples with (modelname, model)'''
     models = [
         ('Random Forest', RandomForestClassifier()),
-        ('Logistic regression', LogisticRegression(C=0.08858667904100823, solver='newton-cg')),
+        ('Logistic regression', LogisticRegression(C=11.288378916846883, penalty='l1', solver='saga', max_iter=1000)),
         ('Decision tree ', DecisionTreeClassifier()),
-        ('Support vector maching', SVC()),
-        ('Naive Bayes', GaussianNB()),
+        ('Support vector maching', SVC(kernel='linear', probability=True, C=100, gamma=1)),
+        ('Naive Bayes', GaussianNB(var_smoothing=2e-9)),
     ]
     return models
 
@@ -276,7 +299,7 @@ def put_features(X_train, X_test, chi=False, boruta=False):
     or features selected by boruta if boruta is set to True,
     returns train set and test set'''
     if chi:
-        features_importance, not_important = ChiSquare(data_heart, output)
+        features_importance, not_important, _, __ = ChiSquare(data_heart, output)
     if boruta:
         features_importance, not_important = boruta_selected()
     train = X_train[features_importance]
@@ -320,24 +343,19 @@ def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 
 #combinations of features selected by boruta and features selected by ChiSquare
-bor_imp , bor_not_imp = boruta_selected()
-chi_imp, chi_not_imp = ChiSquare(data_heart, output)
-
-selected_chi_bor = set(chi_imp + bor_imp)
-print(chi_imp)
-print(chi_not_imp)
-chi_imp.append('totChol')
 
 # Split with get_train_test , oversample and undersample are both is false, no boruta selected features
+models = get_models()
 X_train, X_test, y_train, y_test = get_train_test(X, y)
 noboruta_sampling = evaluate_n_models(
-    get_models(), 'No feature selection no sampling techniques')
+    models, 'No feature selection no sampling techniques')
 
 #chi testing no oversampling
 X_train, X_test, y_train, y_test = get_train_test(X, y, oversample=False,
                                                   undersample=False, over_sampling=.2, under_sampling=.5, test_size=.2)
 
 X_train , X_test = put_features(X_train, X_test,  chi=True)
+models1 = get_models()
 chi_feat = evaluate_n_models(get_models(), 'chi squared features no oversampling')
 
 
@@ -345,15 +363,8 @@ X_train, X_test, y_train, y_test = get_train_test(X, y, oversample=True,
                                                   undersample=False, over_sampling=.9, under_sampling=.8, test_size=.2, n=8)
 
 print(y_train.value_counts())
+X_train, X_test = put_features(X_train, X_test, chi=True)
 
+g
 #Boruta testing
 # Testing with boruta selected and just oversampling
-
-randomforest = RandomForestClassifier()
-params = {'n_estimators':[100,1000,2000,4000], 'max_depth':[4,6,8,10,12],
-         'max_features': ['auto', 'sqrt', 'log2'], 'criterion' :['gini', 'entropy']}
-
-grid = GridSearchCV(randomforest, params, cv=5)
-
-grid.fit(X_train, y_train)
-print(grid.best_estimator_)
