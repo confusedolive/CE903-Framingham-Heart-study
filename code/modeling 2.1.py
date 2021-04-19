@@ -357,14 +357,3 @@ X_train, X_test, y_train, y_test = get_train_test(X, y, oversample=False,
 X_train , X_test = put_features(X_train, X_test,  chi=True)
 models1 = get_models()
 chi_feat = evaluate_n_models(get_models(), 'chi squared features no oversampling')
-
-
-X_train, X_test, y_train, y_test = get_train_test(X, y, oversample=True,
-                                                  undersample=False, over_sampling=.9, under_sampling=.8, test_size=.2, n=8)
-
-print(y_train.value_counts())
-X_train, X_test = put_features(X_train, X_test, chi=True)
-
-g
-#Boruta testing
-# Testing with boruta selected and just oversampling
