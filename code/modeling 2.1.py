@@ -24,7 +24,7 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.utils import shuffle
 from xgboost import XGBClassifier
-
+from imblearn.combine import SMOTETomek
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 #                                                      Loading Dataset                                                                               #
@@ -35,6 +35,7 @@ data_path = r'C:\Users\jeron\OneDrive\Desktop\903group\data\framingham.csv'
 
 data = pd.read_csv(data_path)
 data_heart = data.copy()
+data_heart_means = data_heart.apply(lambda x: x.fillna(x.mean()), axis=0)
 data_heart.dropna(inplace=True)
 data_heart.drop('currentSmoker', axis=1, inplace=True)
 # CurrentSmoker is irrelevant considering we have cigsperday, therefore is dropped.
@@ -50,15 +51,15 @@ not_standard = ['male', 'BPMeds', 'prevalentStroke',
 
 # features that need standarizing i.e. continuous featuers
 need_standard = [x for x in features if x not in not_standard]
-features_to_scale = data_heart[need_standard]
+features_to_scale = data_heart_means[need_standard]
 
 scaler = StandardScaler()
-
 features_scaled = scaler.fit_transform(features_to_scale.values)
-data_heart[need_standard] = features_scaled
+data_heart_means[need_standard] = features_scaled
 
-X = data_heart[features]
-y = data_heart[output]
+X = data_heart_means[features]
+y = data_heart_means[output]
+
 
 # Label balance
 #     15.2269% = 1 | heart risk
@@ -96,7 +97,7 @@ def ChiSquare(data_heart, output, alpha=0.01):
        ----------------------------------------------------
             * data_heart = Dataset
             * output = Label class
-            * alpha= p value threshold
+            * alpha = p value threshold
        ----------------------------------------------------
        returns a list of relevant and not relevant features
        '''
@@ -262,7 +263,7 @@ def get_models():
        tuples with (modelname, model)'''
     models = [
         ('Random Forest', RandomForestClassifier()),
-        ('Logistic regression', LogisticRegression()),
+        ('Logistic regression', LogisticRegression(C=0.08858667904100823, solver='newton-cg')),
         ('Decision tree ', DecisionTreeClassifier()),
         ('Support vector maching', SVC()),
         ('Naive Bayes', GaussianNB()),
@@ -282,7 +283,7 @@ def put_features(X_train, X_test, chi=False, boruta=False):
     test = X_test[features_importance]
     return train, test
 
-def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, under_sampling=.5, test_size=.15):
+def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, under_sampling=.5, test_size=.15, n=8):
     '''
       --------------------------------------------------------------------------
        Utilizes sklearn train and split function to split the dataset
@@ -301,7 +302,7 @@ def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, 
         --------------------------------------------------------------------------
        '''
     if oversample:
-        over = SMOTE(sampling_strategy=over_sampling)
+        over = SMOTE(sampling_strategy=over_sampling, k_neighbors = n)
     if undersample:
         under = RandomUnderSampler(sampling_strategy=under_sampling)
     X_train, X_test, y_train, y_test = train_test_split(
@@ -311,43 +312,48 @@ def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, 
         if undersample:
             X_train, y_train = under.fit_resample(X_train, y_train)
     return X_train, X_test, y_train, y_test
-    
+
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 #                                                         Testing                                                                                    #
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 
+#combinations of features selected by boruta and features selected by ChiSquare
+bor_imp , bor_not_imp = boruta_selected()
+chi_imp, chi_not_imp = ChiSquare(data_heart, output)
+
+selected_chi_bor = set(chi_imp + bor_imp)
+print(chi_imp)
+print(chi_not_imp)
+chi_imp.append('totChol')
+
 # Split with get_train_test , oversample and undersample are both is false, no boruta selected features
 X_train, X_test, y_train, y_test = get_train_test(X, y)
 noboruta_sampling = evaluate_n_models(
     get_models(), 'No feature selection no sampling techniques')
 
-#Boruta testing
+#chi testing no oversampling
 X_train, X_test, y_train, y_test = get_train_test(X, y, oversample=False,
                                                   undersample=False, over_sampling=.2, under_sampling=.5, test_size=.2)
-X_train , X_test = put_features(X_train, X_test,  boruta=True)
+
+X_train , X_test = put_features(X_train, X_test,  chi=True)
 chi_feat = evaluate_n_models(get_models(), 'chi squared features no oversampling')
 
-put_features(X_train, X_test, boruta=True)
-boruta_feat = evaluate_n_models(
-    get_models(), 'Boruta for feature selection no sampling techniques')
 
-#Chi squared testing
+X_train, X_test, y_train, y_test = get_train_test(X, y, oversample=True,
+                                                  undersample=False, over_sampling=.9, under_sampling=.8, test_size=.2, n=8)
+
+print(y_train.value_counts())
+
+#Boruta testing
 # Testing with boruta selected and just oversampling
-X_train, X_test, y_train, y_test = get_train_test(X, y, oversample=True, undersample=False,
-                                                  over_sampling=.9, under_sampling=.5, test_size=.2)
 
-put_features(X_train, X_test, boruta=True)
-print(y_train.value_counts())
-boruta_oversampling_heavy = evaluate_n_models(
-    get_models(), 'Boruta features and oversampling ration .9')
+randomforest = RandomForestClassifier()
+params = {'n_estimators':[100,1000,2000,4000], 'max_depth':[4,6,8,10,12],
+         'max_features': ['auto', 'sqrt', 'log2'], 'criterion' :['gini', 'entropy']}
 
-# boruta features undersampling and oversampling
-X_train, X_test, y_train, y_test = get_train_test(X, y, oversample=True, undersample=True,
-                                                  over_sampling=.2, under_sampling=.8, test_size=.3)
+grid = GridSearchCV(randomforest, params, cv=5)
 
-put_features(X_train, X_test, boruta=True)
-print(y_train.value_counts())
-boruta_oversampling_heavy = evaluate_n_models(
-    get_models(), 'Boruta features oversampling ratio .3 undersampling ratio .8')
+grid.fit(X_train, y_train)
+print(grid.best_estimator_)
