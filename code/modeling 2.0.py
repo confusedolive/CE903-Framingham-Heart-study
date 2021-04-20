@@ -1,14 +1,17 @@
+import os
+from collections import Counter
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import tensorflow as tf
-import os
 from boruta import BorutaPy
+from imblearn.combine import SMOTETomek
 from imblearn.over_sampling import SMOTE
-from imblearn.under_sampling import RandomUnderSampler
+from imblearn.under_sampling import NearMiss, RandomUnderSampler
 from mlxtend.classifier import EnsembleVoteClassifier
-from scipy.stats import chi2_contingency
+from scipy.stats import chi2_contingency, randint
 from sklearn import metrics
 from sklearn.ensemble import (AdaBoostClassifier, BaggingClassifier,
                               GradientBoostingClassifier,
@@ -24,11 +27,7 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.utils import shuffle
-from xgboost import XGBClassifier
-from imblearn.combine import SMOTETomek
-from collections import Counter
-from imblearn.under_sampling import NearMiss
-from scipy.stats import randint
+
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 #                                                      Loading Dataset                                                                               #
@@ -41,11 +40,11 @@ data = pd.read_csv(data_path)
 data_heart = data.copy()
 data_heart.dropna(inplace=True)
 data_heart['male'].isnull().sum()
-#fill missing values with the means
+# fill missing values with the means
 #data_heart = data_heart.apply(lambda x: x.fillna(x.mean()), axis=0)
-#Drop current smoker and education ,
-#CigsperDay covers current smoker and education is not relevant
-data_heart.drop(columns = ['currentSmoker','education'],axis=1, inplace=True)
+# Drop current smoker and education ,
+# CigsperDay covers current smoker and education is not relevant
+data_heart.drop(columns=['currentSmoker', 'education'], axis=1, inplace=True)
 
 # CurrentSmoker is irrelevant considering we have cigsperday, therefore is dropped.
 print(len(data_heart))
@@ -56,11 +55,11 @@ features = ['male', 'age',
             'prevalentHyp', 'diabetes', 'totChol', 'sysBP',
             'diaBP', 'BMI', 'heartRate', 'glucose']
 
-#No scaling are categorical features [0,1] that dont need scaling
+# No scaling are categorical features [0,1] that dont need scaling
 no_scaling = ['male', 'BPMeds', 'prevalentStroke',
-                'prevalentHyp', 'diabetes', 'TenYearCHD']
+              'prevalentHyp', 'diabetes', 'TenYearCHD']
 
-#list of features that need scaling
+# list of features that need scaling
 need_standard = [x for x in features if x not in no_scaling]
 features_to_scale = data_heart[need_standard]
 
@@ -70,11 +69,11 @@ print(need_standard)
 standard = StandardScaler()
 scaled_features = standard.fit_transform(features_to_scale)
 data_heart[need_standard] = scaled_features
-scaler = MinMaxScaler(feature_range=(0,1))
+scaler = MinMaxScaler(feature_range=(0, 1))
 features_scaled = scaler.fit_transform(data_heart[features])
 
 data_heart[features] = features_scaled
-#separate features and output
+# separate features and output
 X = data_heart[features]
 y = data_heart[output].values
 print(X.describe())
@@ -84,6 +83,7 @@ print(X.describe())
 #                                               preprocessing and feature selection functions                                                                      #
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
+
 
 def boruta_selected():
     randomclf = RandomForestClassifier(n_jobs=-1,
@@ -131,11 +131,12 @@ def ChiSquare(data_heart, output, alpha=0.05):
                 not_relevant.append(column)
                 not_relevant.append(p_value)
 
+    return relevant, relevant_pval, not_relevant, not_relevant_pval
 
-    return relevant,relevant_pval, not_relevant, not_relevant_pval
 
-#get relevant features and their p_values to understand which features are statisticially significant
-relevant, relevant_p, not_relevant, not_relevant_p = ChiSquare(data_heart, output)
+# get relevant features and their p_values to understand which features are statisticially significant
+relevant, relevant_p, not_relevant, not_relevant_p = ChiSquare(
+    data_heart, output)
 relevant_pvals_chi = list(zip(relevant, relevant_p))
 for tup in relevant_pvals_chi:
     print(tup)
@@ -144,6 +145,7 @@ for tup in relevant_pvals_chi:
 #                                                      Evaluation  functions                                                                         #
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
+
 
 def pre_recall_auc(y_p, y_t, label):
     '''
@@ -239,8 +241,7 @@ def evaluate_model(model, modelname):
     print(f"{modelname}'s recall is {metrics.recall_score(y_test, y_predict):.2f}")
     print('-' * 80, '\n')
     print('#' * 80, '\n')
-    return metrics.recall_score(y_test, y_predict), metrics.precision_score(y_test, y_predict)\
-                    ,model_auc, metrics.f1_score(y_test, y_predict),model.score(X_test, y_test)
+    return metrics.recall_score(y_test, y_predict), metrics.precision_score(y_test, y_predict), model_auc, metrics.f1_score(y_test, y_predict), model.score(X_test, y_test)
 
 
 def evaluate_n_models(models, type_test):
@@ -272,7 +273,7 @@ def evaluate_n_models(models, type_test):
         recall, prec, auc_score, f1, acc = evaluate_model(model, modelname)
         scores_dict[modelname] = {
             'Recall': recall, 'Precision': prec,
-             'Area under curve': auc_score, 'f1 score': f1, 'Accuracy':acc }
+            'Area under curve': auc_score, 'f1 score': f1, 'Accuracy': acc}
     scores = pd.DataFrame(scores_dict)
     print('-' * 80, '\n')
     print('All scores\n')
@@ -283,6 +284,7 @@ def evaluate_n_models(models, type_test):
 #                                               Set selection, processing and models functions                                                       #
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
+
 
 def get_models():
     '''returns list of models containing
@@ -297,18 +299,21 @@ def get_models():
     ]
     return models
 
+
 def put_features(X_train, X_test, chi=False, boruta=False):
     '''Takes X train and X test and converts the features
     to features selected by either Chi Squared test if chi is set to True
     or features selected by boruta if boruta is set to True,
     returns train set and test set'''
     if chi:
-        features_importance, not_important, _, __ = ChiSquare(data_heart, output)
+        features_importance, not_important, _, __ = ChiSquare(
+            data_heart, output)
     if boruta:
         features_importance, not_important = boruta_selected()
     train = X_train[features_importance]
     test = X_test[features_importance]
     return train, test
+
 
 def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, test_size=0.20, n=8):
     '''
@@ -329,7 +334,7 @@ def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, 
         --------------------------------------------------------------------------
        '''
     if oversample:
-        over = SMOTE(sampling_strategy=over_sampling, k_neighbors = n)
+        over = SMOTE(sampling_strategy=over_sampling, k_neighbors=n)
     if undersample:
         undersample = NearMiss(version=2, n_neighbors_ver2=2)
     X_train, X_test, y_train, y_test = train_test_split(
@@ -339,6 +344,7 @@ def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, 
         if undersample:
             X_train, y_train = under.fit_resample(X_train, y_train)
     return X_train, X_test, y_train, y_test
+
 
 def visualize_performances(df, description):
     '''Creates a new folder inside the visualization folder
@@ -357,7 +363,8 @@ def visualize_performances(df, description):
         sns.barplot(x=df[col], y=df.index)
         plt.xlabel(" ")
         plt.title(col)
-        plt.savefig(os.path.join(path, f'{col} {description}'), bbox_inches='tight')
+        plt.savefig(os.path.join(
+            path, f'{col} {description}'), bbox_inches='tight')
         plt.show()
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -366,7 +373,8 @@ def visualize_performances(df, description):
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 
-#combinations of features selected by boruta and features selected by ChiSquare
+# combinations of features selected by boruta and features selected by ChiSquare
+
 
 # Split with get_train_test ,no features selected, test size 20% train size 20%
 models = get_models()
@@ -374,17 +382,19 @@ X_train, X_test, y_train, y_test = get_train_test(X, y)
 no_features = evaluate_n_models(
     models, 'No feature selection no sampling techniques')
 visualize_performances(no_features, 'No features')
-#chi features
+# chi features
 
-X_train, X_test  = put_features(X_train, X_test, chi=True)
+X_train, X_test = put_features(X_train, X_test, chi=True)
 mod = get_models()
-chi_feature_scores = evaluate_n_models(mod, 'features selected with chi squared test')
+chi_feature_scores = evaluate_n_models(
+    mod, 'features selected with chi squared test')
 visualize_performances(chi_feature_scores, 'chi features')
 
 X_train, X_test, y_train, y_test = get_train_test(X, y)
-X_train, X_test  = put_features(X_train, X_test, boruta=True)
+X_train, X_test = put_features(X_train, X_test, boruta=True)
 mod = get_models()
-boruta_feature_scores = evaluate_n_models(mod, 'features selected with Borutapy')
+boruta_feature_scores = evaluate_n_models(
+    mod, 'features selected with Borutapy')
 visualize_performances(boruta_feature_scores, 'boruta features')
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -393,46 +403,47 @@ visualize_performances(boruta_feature_scores, 'boruta features')
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 
 
-#Logistic regression and support vector machine seems to be performing the best overall,
-#with featuers selected using the chi squared test
+# Logistic regression and support vector machine seems to be performing the best overall,
+# with featuers selected using the chi squared test
 
 X_train, X_test, y_train, y_test = get_train_test(X, y)
-X_train, X_test  = put_features(X_train, X_test, chi=True)
+X_train, X_test = put_features(X_train, X_test, chi=True)
 
-#Hyperparameters to be tested for Logistic Regression
-params = [{'penalty':['l2'],
-          'C': np.logspace(-4,4, 50),
-          'class_weight': ['balanced', None],
-          'solver':['newton-cg','lbfgs','sag', 'saga']},
-           {'penalty': ['elasticnet'],
-            'C': np.logspace(-4,4, 50),
-             'class_weight': ['balanced', None],
-             'solver':['saga'], 'l1_ratio':[0, 1]},
-             {'penalty': ['l1'],
-              'C': np.logspace(-4,4, 50),
-               'class_weight': ['balanced', None],
-               'solver':['liblinear', 'saga']}]
+# Hyperparameters to be tested for Logistic Regression
+params = [{'penalty': ['l2'],
+          'C': np.logspace(-4, 4, 50),
+           'class_weight': ['balanced', None],
+           'solver':['newton-cg', 'lbfgs', 'sag', 'saga']},
+          {'penalty': ['elasticnet'],
+           'C': np.logspace(-4, 4, 50),
+           'class_weight': ['balanced', None],
+           'solver':['saga'], 'l1_ratio':[0, 1]},
+          {'penalty': ['l1'],
+              'C': np.logspace(-4, 4, 50),
+           'class_weight': ['balanced', None],
+           'solver':['liblinear', 'saga']}]
 
 log_model = LogisticRegression()
-grid = GridSearchCV(log_model, params, cv=10 )
+grid = GridSearchCV(log_model, params, cv=10)
 grid.fit(X_train, y_train)
 print(grid.best_estimator_)
-#cross validating performance of logistic regression
-optimal_logistic = LogisticRegression(C=0.18420699693267145, solver='newton-cg', penalty='l2')
+# cross validating performance of logistic regression
+optimal_logistic = LogisticRegression(
+    C=0.18420699693267145, solver='newton-cg', penalty='l2')
 cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=42)
-scores = cross_val_score(optimal_logistic, X_train, y_train, cv=cv, n_jobs=-1)
+scores = cross_val_score(optimal_logistic, X_train, y_train, cv=cv)
 
 print(scores.mean())
 optimal_logistic.fit(X_train, y_train)
 y_pred_logistic = optimal_logistic.predict(X_test)
 print(classification_report(y_test, y_pred_logistic))
 
-#Support vector machine Hyperparameter tuning
+# Support vector machine Hyperparameter tuning
 svc = SVC()
 params_svc = {'C': [0.01, 0.1, 1, 10, 100],
-              'gamma': [1,0.1,0.01,0.001],
+              'gamma': [1, 0.1, 0.01, 0.001],
               'kernel': ['rbf', 'poly', 'sigmoid'],
-              'class_weight':['balanced', None]}
+              'class_weight': ['balanced', None]}
 
 grid_svc = GridSearchCV(svc, params_svc, verbose=2, cv=10)
 grid_svc.fit(X_train, y_train)
@@ -440,21 +451,41 @@ print(grid_svc.best_estimator_)
 
 optimal_svc = SVC(C=1, gamma=1, kernel='poly')
 cv1 = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=42)
-scores1 = cross_val_score(optimal_svc, X_train, y_train, cv=cv1, n_jobs=-1)
+scores1 = cross_val_score(optimal_svc, X_train, y_train, cv=cv1)
 print(scores1.mean())
 
-#Decision Tree hyperparameter tuning
+# Decision Tree hyperparameter tuning
 
 tree = DecisionTreeClassifier()
 params = param_dist = {"max_depth": [3, 6, 8, 12],
-              "max_features": [2,4,6,9],
-              "min_samples_leaf": [2,4,5,9],
-              "criterion": ["gini", "entropy"]}
+                       "max_features": [2, 4, 6, 9],
+                       "min_samples_leaf": [2, 4, 5, 9],
+                       "criterion": ["gini", "entropy"]}
 tree_grid = GridSearchCV(tree, params, cv=10)
-tree_grid.fit(X_train,y_train)
+tree_grid.fit(X_train, y_train)
 print(tree_grid.best_estimator_)
 optimal_tree = DecisionTreeClassifier(criterion='entropy', max_depth=3, max_features=4,
-                       min_samples_leaf=2)
+                                      min_samples_leaf=2)
 cv2 = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=42)
 scores2 = cross_val_score(optimal_tree, X_train, y_train, cv=cv2)
-print(scores1.mean())
+print(scores2.mean())
+
+# Comparing performance of all three hypertuned parameters
+optimized_models = [('Decision Tree', optimal_tree), ('Support Vector Machine',
+                                                      optimal_svc), ('Logistic Regression', optimal_logistic)]
+optimals = evaluate_n_models(optimized_models, 'all models')
+visualize_performances(optimals, 'optimal models class weight')
+optimals
+# visualizing the area under the curve for the optimized models
+for name, model in optimized_models:
+    model.fit(X_train, y_train)
+    y_predict = model.predict(X_test)
+    prec, rec, threshold = precision_recall_curve(y_test, y_predict)
+    auc_score = auc(rec, prec)
+    plt.plot(rec, prec, marker='.', label=f'{name} (auc = {auc_score:.2f})')
+    plt.legend()
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    plt.title('Precision recall curve')
+plt.savefig('COMPARE auc optimal')
+plt.show()
