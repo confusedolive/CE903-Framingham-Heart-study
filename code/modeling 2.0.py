@@ -10,12 +10,9 @@ from boruta import BorutaPy
 from imblearn.combine import SMOTETomek
 from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import NearMiss, RandomUnderSampler
-from mlxtend.classifier import EnsembleVoteClassifier
 from scipy.stats import chi2_contingency, randint
 from sklearn import metrics
-from sklearn.ensemble import (AdaBoostClassifier, BaggingClassifier,
-                              GradientBoostingClassifier,
-                              RandomForestClassifier, StackingClassifier)
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (auc, classification_report, plot_confusion_matrix,
                              precision_recall_curve)
@@ -26,7 +23,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.utils import shuffle
+
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -315,7 +312,7 @@ def put_features(X_train, X_test, chi=False, boruta=False):
     return train, test
 
 
-def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, test_size=0.20, n=8):
+def get_train_test(X, y, oversample=False, undersample=False, over_sampling=None, test_size=0.20, n=8):
     '''
       --------------------------------------------------------------------------
        Utilizes sklearn train and split function to split the dataset
@@ -334,7 +331,7 @@ def get_train_test(X, y, oversample=False, undersample=False, over_sampling=.2, 
         --------------------------------------------------------------------------
        '''
     if oversample:
-        over = SMOTE(sampling_strategy=over_sampling, k_neighbors=n)
+        over = SMOTETomek(random_state=42)
     if undersample:
         undersample = NearMiss(version=2, n_neighbors_ver2=2)
     X_train, X_test, y_train, y_test = train_test_split(
@@ -406,7 +403,7 @@ visualize_performances(boruta_feature_scores, 'boruta features')
 # Logistic regression and support vector machine seems to be performing the best overall,
 # with featuers selected using the chi squared test
 
-X_train, X_test, y_train, y_test = get_train_test(X, y)
+X_train, X_test, y_train, y_test = get_train_test(X, y, oversample=False)
 X_train, X_test = put_features(X_train, X_test, chi=True)
 
 # Hyperparameters to be tested for Logistic Regression
@@ -427,6 +424,7 @@ log_model = LogisticRegression()
 grid = GridSearchCV(log_model, params, cv=10)
 grid.fit(X_train, y_train)
 print(grid.best_estimator_)
+
 # cross validating performance of logistic regression
 optimal_logistic = LogisticRegression(
     C=0.18420699693267145, solver='newton-cg', penalty='l2')
@@ -434,6 +432,7 @@ cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=42)
 scores = cross_val_score(optimal_logistic, X_train, y_train, cv=cv)
 
 print(scores.mean())
+###get classification report
 optimal_logistic.fit(X_train, y_train)
 y_pred_logistic = optimal_logistic.predict(X_test)
 print(classification_report(y_test, y_pred_logistic))
@@ -474,7 +473,7 @@ print(scores2.mean())
 optimized_models = [('Decision Tree', optimal_tree), ('Support Vector Machine',
                                                       optimal_svc), ('Logistic Regression', optimal_logistic)]
 optimals = evaluate_n_models(optimized_models, 'all models')
-visualize_performances(optimals, 'optimal models class weight')
+visualize_performances(optimals, 'optimal models test')
 optimals
 # visualizing the area under the curve for the optimized models
 for name, model in optimized_models:
@@ -487,5 +486,6 @@ for name, model in optimized_models:
     plt.xlabel('Recall')
     plt.ylabel('Precision')
     plt.title('Precision recall curve')
-plt.savefig('COMPARE auc optimal')
+plt.savefig('COMPARE auc optima testl')
 plt.show()
+optimals
