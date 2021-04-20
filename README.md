@@ -30,7 +30,7 @@ for this the focus metrics of evaluation will be:
 * F1 score
 * Area under the curve (AUC) for the precision recall curve
 
-This metrics are chosen on the basis of dealing with an imbalanced dataset , in order to deal with this imbalanced the main techniques chosen are Synthetic Minority Oversampling Technique (SMOTE) and Random Under Sampling. <br/>
+This metrics are chosen on the basis of dealing with an imbalanced dataset , in order to deal with this imbalanced an array of  techniques have been evaluated; Synthetic Minority Oversampling Technique (SMOTE), Random Under Sampling, class weight optimization etc... <br/>
 It is important as well to note that  recall will be prioritised over precision as given the nature of the research False negatives (1 classified as 0) can be more dangerous than False positives(0 classified as 1).
 ## Images
 A heatmap showing the correlation between variables in the dataset
