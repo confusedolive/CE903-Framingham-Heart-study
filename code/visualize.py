@@ -46,10 +46,11 @@ def label_balance_gender():
     df.rename(columns={'male':'gender'}, inplace=True)
     df['gender'].replace([0,1],['female', 'male'], inplace=True)
 
-    face_gender = sns.FacetGrid(data=df, col='gender', hue='TenYearCHD', palette='muted')
+    face_gender = sns.FacetGrid(data=df, col='gender', hue='TenYearCHD')
 
     face_gender.map(sns.histplot, 'TenYearCHD')
     plt.xticks([0,1])
+    plt.legend()
     plt.savefig(os.path.join(figures_path, 'label balance gender'))
     plt.show()
 
@@ -100,7 +101,7 @@ def percentage_perclass(variable):
     plt.savefig(os.path.join(figures_path,'age ranges'))
     plt.show()
 
-percentage_perclass('age range')
+
 
 ################checking distribution of variables #######################
 
@@ -130,7 +131,7 @@ def line_distribution():
         plt.title(f'{element} line distribution')
         plt.savefig(os.path.join(path, f'{element} line distribution.png'))
         plt.show()
-line_distribution()
+
 #############################looking for outliers#######################################
 def box_plots():
     path = os.path.join(figures_path, 'boxplot')
@@ -153,7 +154,7 @@ def violin_plots():
         plt.title(f'{elements} violinplot')
         plt.savefig(os.path.join(path,f'{elements} violinplot'))
         plt.show()
-violin_plots()
+
 #############joyplot########################################
 from matplotlib import cm
 from joypy import joyplot
@@ -205,9 +206,13 @@ def education_risk():
     plt.show()
 
 
-
-
-
-
-
-#fail to reject h0 ergo indepedent
+def age_range_label():
+    df = data_heart.copy()
+    df['age range'] = pd.cut(df['age'], bins=4)
+    df['age range']
+    facet = sns.FacetGrid(data=df, col='age range', hue='TenYearCHD')
+    facet.map(sns.histplot, 'TenYearCHD')
+    plt.xticks([0,1])
+    plt.savefig(os.path.join(figures_path, 'age range label distribution'),
+    bbox_inches='tight')
+    plt.show()
