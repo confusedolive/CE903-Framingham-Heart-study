@@ -28,6 +28,7 @@ from xgboost import XGBClassifier
 from imblearn.combine import SMOTETomek
 from collections import Counter
 from imblearn.under_sampling import NearMiss
+from scipy.stats import randint
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
 #                                                      Loading Dataset                                                                               #
@@ -38,10 +39,10 @@ data_path = r'C:\Users\jeron\OneDrive\Desktop\903group\data\framingham.csv'
 
 data = pd.read_csv(data_path)
 data_heart = data.copy()
-data_heart.dropna(subset=['male'], inplace=True)
+data_heart.dropna(inplace=True)
 data_heart['male'].isnull().sum()
 #fill missing values with the means
-data_heart = data_heart.apply(lambda x: x.fillna(x.mean()), axis=0)
+#data_heart = data_heart.apply(lambda x: x.fillna(x.mean()), axis=0)
 #Drop current smoker and education ,
 #CigsperDay covers current smoker and education is not relevant
 data_heart.drop(columns = ['currentSmoker','education'],axis=1, inplace=True)
@@ -66,6 +67,9 @@ features_to_scale = data_heart[need_standard]
 data_heart[need_standard].describe()
 print(need_standard)
 
+standard = StandardScaler()
+scaled_features = standard.fit_transform(features_to_scale)
+data_heart[need_standard] = scaled_features
 scaler = MinMaxScaler(feature_range=(0,1))
 features_scaled = scaler.fit_transform(data_heart[features])
 
@@ -89,7 +93,7 @@ def boruta_selected():
     boruta_select = BorutaPy(randomclf, n_estimators='auto',
                              verbose=2, random_state=1)
 
-    boruta_select.fit(np.array(X), np.array(y))
+    boruta_select.fit(np.array(X_train), np.array(y_train))
 
     features_importance = [X.columns[i]
                            for i, boolean in enumerate(boruta_select.support_) if boolean]
@@ -353,7 +357,7 @@ def visualize_performances(df, description):
         sns.barplot(x=df[col], y=df.index)
         plt.xlabel(" ")
         plt.title(col)
-        plt.savefig(os.path.join(path, f'{col} {description}'))
+        plt.savefig(os.path.join(path, f'{col} {description}'), bbox_inches='tight')
         plt.show()
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -395,6 +399,7 @@ visualize_performances(boruta_feature_scores, 'boruta features')
 X_train, X_test, y_train, y_test = get_train_test(X, y)
 X_train, X_test  = put_features(X_train, X_test, chi=True)
 
+#Hyperparameters to be tested for Logistic Regression
 params = [{'penalty':['l2'],
           'C': np.logspace(-4,4, 50),
           'class_weight': ['balanced', None],
@@ -409,11 +414,11 @@ params = [{'penalty':['l2'],
                'solver':['liblinear', 'saga']}]
 
 log_model = LogisticRegression()
-grid = GridSearchCV(log_model, params, cv=12 )
+grid = GridSearchCV(log_model, params, cv=10 )
 grid.fit(X_train, y_train)
 print(grid.best_estimator_)
 #cross validating performance of logistic regression
-optimal_logistic = LogisticRegression(C=11.513953993264458, solver='newton-cg')
+optimal_logistic = LogisticRegression(C=0.18420699693267145, solver='newton-cg', penalty='l2')
 cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=42)
 scores = cross_val_score(optimal_logistic, X_train, y_train, cv=cv, n_jobs=-1)
 
@@ -429,11 +434,27 @@ params_svc = {'C': [0.01, 0.1, 1, 10, 100],
               'kernel': ['rbf', 'poly', 'sigmoid'],
               'class_weight':['balanced', None]}
 
-grid_svc = GridSearchCV(svc, params_svc, verbose=2)
+grid_svc = GridSearchCV(svc, params_svc, verbose=2, cv=10)
 grid_svc.fit(X_train, y_train)
 print(grid_svc.best_estimator_)
 
 optimal_svc = SVC(C=1, gamma=1, kernel='poly')
 cv1 = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=42)
-scores1 = cross_val_score(optimal_svc, X_train, y_train, cv=cv, n_jobs=-1)
+scores1 = cross_val_score(optimal_svc, X_train, y_train, cv=cv1, n_jobs=-1)
+print(scores1.mean())
+
+#Decision Tree hyperparameter tuning
+
+tree = DecisionTreeClassifier()
+params = param_dist = {"max_depth": [3, 6, 8, 12],
+              "max_features": [2,4,6,9],
+              "min_samples_leaf": [2,4,5,9],
+              "criterion": ["gini", "entropy"]}
+tree_grid = GridSearchCV(tree, params, cv=10)
+tree_grid.fit(X_train,y_train)
+print(tree_grid.best_estimator_)
+optimal_tree = DecisionTreeClassifier(criterion='entropy', max_depth=3, max_features=4,
+                       min_samples_leaf=2)
+cv2 = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=42)
+scores2 = cross_val_score(optimal_tree, X_train, y_train, cv=cv2)
 print(scores1.mean())
