@@ -81,8 +81,8 @@ Example of the results of not stratitifed not oversampled or undersampled train/
 - [x] More research on the specific dataset
 - [x] Test different models
 - [x] Find optimal model
-- [ ] Fine tune model
-- [ ] Write report
+- [x] Fine tune model
+- [x] Write report
 
 ## Status
 Project is: _in progress_<br/>
